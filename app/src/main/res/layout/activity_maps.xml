@@ -18,7 +18,10 @@
             android:textColorHint = "@android:color/darker_gray"
             android:ems="10"
             android:hint="Search for Hospitals" />
+
+
         <ImageButton
+            android:id="@+id/search_address"
             android:layout_width="wrap_content"
             android:layout_height="50dp"
             android:layout_alignParentRight="true"

@@ -2,9 +2,14 @@ package com.example.hospitals;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -21,6 +26,9 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.IOException;
+import java.util.List;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -42,7 +50,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Location lastLocation;
     private Marker currentLocationMarker;
     public static final int REQUEST_LOCATION_CODE = 99;
-    double latitude , longitude;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,39 +115,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-//    public void  onClick(View v){
-//        if (v.getId() == R.id.btn_search){
-//            EditText tf_location = (EditText)findViewById(R.id.TF_Location);
-//            String location = tf_location.getText().toString();
-//            List<Address> addressList = null;
-//            MarkerOptions mo = new MarkerOptions();
-//
-//
-//            if ( !location.equals("")){
-//                Geocoder geocoder = new Geocoder(this);
-//                try {
-//                    addressList = geocoder.getFromLocationName(location,5);
-//
-//
-//
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//
-//                for (int i  = 0; i < addressList.size();i++){
-//                    Address myAddress = addressList.get(i);
-//                    LatLng latLng = new LatLng(myAddress.getLatitude(),myAddress.getLongitude());
-//
-//                    mo.position(latLng);
-//                    mo.title("Your Search is here");
-//                    mMap.addMarker(mo);
-//                    mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng));
-//                    mMap.animateCamera(CameraUpdateFactory.zoomTo(10));
-//
-//                }
-//            }
-//        }
-//    }
+
+
+
+
+
 
     protected synchronized void buildGoogleApiClient(){
         client = new GoogleApiClient.Builder(this)
@@ -183,7 +163,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationRequest = new LocationRequest();
         locationRequest.setInterval(3000);
         locationRequest.setFastestInterval(1000);
-        locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
         if (ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
             LocationServices.FusedLocationApi.requestLocationUpdates(client, locationRequest, this);
@@ -191,6 +171,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
     }
+
+
+    public void onClick(View v){
+        switch(v.getId())
+        {
+            case R.id.search_address:
+                EditText addressField = (EditText) findViewById(R.id.location_search);
+                String address = addressField.getText().toString();
+
+                List<Address> addressList = null;
+                MarkerOptions userMarkeroptions = new MarkerOptions();
+
+                if (!TextUtils.isEmpty(address))
+                {
+                    Geocoder geocoder = new Geocoder(this);
+
+                    try {
+                        addressList = geocoder.getFromLocationName(address,6);
+
+                        if (addressList != null)
+                        {
+                            for (int i=0; i<addressList.size(); i++)
+                            {
+                                Address userAddress = addressList.get(i);
+                                LatLng latLng = new LatLng(userAddress.getLatitude(), userAddress.getLongitude());
+                                userMarkeroptions.position(latLng);
+                                userMarkeroptions.title(address);
+                                userMarkeroptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+                                mMap.addMarker(userMarkeroptions);
+                                mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+                                mMap.animateCamera(CameraUpdateFactory.zoomTo(10));
+                            }
+
+                        }
+                        else
+                        {
+                            Toast.makeText(this,"Location Not Found",Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+
+                }
+                else
+                {
+                    Toast.makeText(this,"Please write a location",Toast.LENGTH_SHORT).show();
+                }
+                break;
+        }
+    }
+
+
+
 
 
     public  boolean checkUserLocationPermission(){
