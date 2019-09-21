@@ -29,6 +29,13 @@ public class DataParser
             }
             latitude = googlePlaceJSON.getJSONObject("geometry").getJSONObject("location").getString("lat");
             longitude = googlePlaceJSON.getJSONObject("geometry").getJSONObject("location").getString("lng");
+            refernce = googlePlaceJSON.getString("reference");
+
+            googlePlaceMap.put("place_name", NameOfPlace);
+            googlePlaceMap.put("vicinity", vicinity);
+            googlePlaceMap.put("lat", latitude);
+            googlePlaceMap.put("lng", longitude);
+            googlePlaceMap.put("reference", refernce);
 
 
 
@@ -37,5 +44,7 @@ public class DataParser
         {
             e.printStackTrace();
         }
+
+        return googlePlaceMap;
     }
 }
