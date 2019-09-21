@@ -17,7 +17,21 @@ public class DataParser
 
         try
         {
-            NameOfPlace = googlePlaceJSON.getString("name");
+            if (!googlePlaceJSON.isNull("name"))
+            {
+                NameOfPlace = googlePlaceJSON.getString("name");
+            }
+
+
+            if (!googlePlaceJSON.isNull("vicinity"))
+            {
+                vicinity = googlePlaceJSON.getString("vicinity");
+            }
+            latitude = googlePlaceJSON.getJSONObject("geometry").getJSONObject("location").getString("lat");
+            longitude = googlePlaceJSON.getJSONObject("geometry").getJSONObject("location").getString("lng");
+
+
+
         }
         catch (JSONException e)
         {
