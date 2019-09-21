@@ -55,10 +55,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int ProximityRadius = 10000;
 
 
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
@@ -178,6 +183,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
+
+
     public void onClick(View v){
 
         String hospital = "hospital", clinics = "clinics" ,  pharmacy = "pharmacy";
@@ -213,6 +220,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 mMap.addMarker(userMarkeroptions);
                                 mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                                 mMap.animateCamera(CameraUpdateFactory.zoomTo(10));
+
                             }
 
                         }
