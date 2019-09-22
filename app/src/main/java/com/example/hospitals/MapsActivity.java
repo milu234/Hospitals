@@ -1,6 +1,7 @@
 package com.example.hospitals;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
@@ -28,7 +29,18 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 import java.util.List;
 
 import androidx.annotation.NonNull;
@@ -37,12 +49,17 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import static java.lang.Math.acos;
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
+import static java.lang.Math.toRadians;
+
 //import android.location.LocationListener;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
-        LocationListener {
+        LocationListener, GoogleMap.OnInfoWindowClickListener {
 
     private GoogleMap mMap;
     private GoogleApiClient client;
@@ -74,6 +91,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+
+
 
 
 
@@ -121,6 +140,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
         }
+
+
     }
 
 
@@ -144,15 +165,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         longitude = location.getLongitude();
         lastLocation = location;
         if (currentLocationMarker != null){
-            currentLocationMarker.remove();
+//            currentLocationMarker.remove();
 
         }
 
         LatLng latLng = new LatLng(location.getLatitude(),location.getLongitude());
         MarkerOptions markerOptions = new MarkerOptions();
+        InfoWindowAdapter infoWindowAdapter = new InfoWindowAdapter(getApplicationContext());
         markerOptions.position(latLng);
-        markerOptions.title("You are here");
-        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+        markerOptions.title("Hi , You Are Here");
+        mMap.setInfoWindowAdapter(infoWindowAdapter);
+        markerOptions.icon(BitmapDescriptorFactory.fromResource(R.mipmap.user));
 
         currentLocationMarker = mMap.addMarker(markerOptions);
 
@@ -187,9 +210,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void onClick(View v){
 
-        String hospital = "hospital", clinics = "clinics" ,  pharmacy = "pharmacy";
+        String hospital = "hospital", clinics = "clinics" ,  pharmacy = "pharmacy" , medical = "medical", blood = "blood";
         Object transferData[] = new Object[2];
         GetNearbyPlaces getNearbyPlaces = new GetNearbyPlaces();
+        final InfoWindowAdapter infoWindowAdapter = new InfoWindowAdapter(getApplicationContext());
+        mMap.setInfoWindowAdapter(infoWindowAdapter);
+
 
 
         switch(v.getId())
@@ -197,6 +223,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             case R.id.search_address:
                 EditText addressField = (EditText) findViewById(R.id.location_search);
                 String address = addressField.getText().toString();
+
 
                 List<Address> addressList = null;
                 MarkerOptions userMarkeroptions = new MarkerOptions();
@@ -215,11 +242,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 Address userAddress = addressList.get(i);
                                 LatLng latLng = new LatLng(userAddress.getLatitude(), userAddress.getLongitude());
                                 userMarkeroptions.position(latLng);
-                                userMarkeroptions.title(address);
+                                userMarkeroptions.title(address.toUpperCase());
+                                userMarkeroptions.snippet(String.valueOf(latLng));
+
                                 userMarkeroptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
                                 mMap.addMarker(userMarkeroptions);
                                 mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                                 mMap.animateCamera(CameraUpdateFactory.zoomTo(10));
+                                mMap.setOnInfoWindowClickListener(this);
+
+
 
                             }
 
@@ -243,6 +275,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             case R.id.nearby_hospitals:
                 mMap.clear();
+
+
+
                 String url = getUrl(latitude,longitude,hospital);
                 transferData[0] = mMap;
                 transferData[1] = url;
@@ -250,13 +285,67 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 getNearbyPlaces.execute(transferData);
                 Toast.makeText(this,"Searching For Nearby Hospitals",Toast.LENGTH_SHORT).show();
                 Toast.makeText(this,"Showing Nearby Hospitals",Toast.LENGTH_SHORT).show();
+                mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+                    @Override
+                    public void onInfoWindowClick(Marker marker) {
+                        Intent intent = new Intent(MapsActivity.this,InfoPage.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putString("nameOfPlace",marker.getTitle());
+                        bundle.putString("vicinity",marker.getSnippet());
+                        LatLng current = currentLocationMarker.getPosition();
+                        double currentlat = current.latitude;
+                        double currentlng = current.longitude;
+
+                        LatLng results =  marker.getPosition();
+                        double lat = results.latitude;
+                        double lng = results.longitude;
+                        double dist;
+                        Location locationA = new Location("");
+
+                        locationA.setLatitude(currentlat);
+                        locationA.setLongitude(currentlng);
+
+                        Location locationB = new Location("");
+                        locationA.setLatitude(lat);
+                        locationA.setLongitude(lng);
+
+                        dist = getDistanceMeters(currentlat,currentlng,lat,lng);
+
+                        String m = String.valueOf(dist);
+                        bundle.putString("dist",m);
+
+
+
+                        intent.putExtras(bundle);
+                        startActivity(intent);
+
+
+
+
+
+
+                    }
+                });
+
+
+
+
+
+
+
+
+
+
+
+
+
                 break;
 
 
 
             case R.id.nearby_clinics:
                 mMap.clear();
-                url = getUrl(latitude,longitude,clinics);
+                url = getUrl(latitude,longitude,blood);
                 transferData[0] = mMap;
                 transferData[1] = url;
 
@@ -286,7 +375,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         StringBuilder googleURL = new StringBuilder("https://maps.googleapis.com/maps/api/place/nearbysearch/json?");
         googleURL.append("location=" + latitude + "," + longitude);
         googleURL.append("&radius=" + ProximityRadius);
+
         googleURL.append("&type=" + nearByPlace);
+
+
         googleURL.append("&sensor=true");
         googleURL.append("&key=" + "AIzaSyByHZ12mWB7i6FhVM6W7FrJQCsYITBme0c");
 
@@ -301,18 +393,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
 
+
+
     public  boolean checkUserLocationPermission(){
         if (ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-                if (ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.ACCESS_FINE_LOCATION))
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.ACCESS_FINE_LOCATION))
             {
 
                 ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION} , REQUEST_LOCATION_CODE);
 
             }
-                else {
-                    ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION} , REQUEST_LOCATION_CODE);
-                }
-                return false;
+            else {
+                ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION} , REQUEST_LOCATION_CODE);
+            }
+            return false;
         }
         else
             return true;
@@ -327,4 +421,87 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
+
+
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+        Intent intent = new Intent(MapsActivity.this,InfoPage.class);
+        intent.putExtra("nameOfPlace",marker.getTitle());
+        intent.putExtra("vicinity",marker.getSnippet());
+        startActivity(intent);
+    }
+
+    public static double getDistanceMeters(double lat1, double lng1, double lat2, double lng2){
+        double l1 = toRadians(lat1);
+        double l2 = toRadians(lat2);
+        double g1 = toRadians(lng1);
+        double g2 = toRadians(lng2);
+
+        double dist = acos(sin(l1) * sin(l2) + cos(l1) * cos(l2) * cos(g1 - g2));
+        if(dist < 0) {
+            dist = dist + Math.PI;
+        }
+
+        dist = (dist * 6378100)/1000;
+        dist = Math.round(dist * 100);
+        dist = dist/100;
+
+        return dist;
+
+    }
+
+
+
+
+
+    public String getDistance(final double lat1, final double lon1, final double lat2, final double lon2)
+    {
+        final String[] parsedDistance = new String[1];
+        final String[] response = new String[1];
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    URL url = new URL("http://maps.googleapis.com/maps/api/directions/json?origin=" + lat1 + "," + lon1 + "&destination=" + lat2 + "," + lon2 + "&sensor=false&units=metric&mode=driving&key" + "AIzaSyByHZ12mWB7i6FhVM6W7FrJQCsYITBme0c");
+                    final HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    InputStream in = new BufferedInputStream(conn.getInputStream());
+                    response[0] = IOUtils.toString(in, "UTF-8");
+
+                    JSONObject jsonObject = new JSONObject(response[0]);
+                    JSONArray array = jsonObject.getJSONArray("routes");
+                    JSONObject routes = array.getJSONObject(0);
+                    JSONArray legs = routes.getJSONArray("legs");
+                    JSONObject steps = legs.getJSONObject(0);
+                    JSONObject distance = steps.getJSONObject("distance");
+                    parsedDistance[0] = distance.getString("text");
+
+
+                } catch (ProtocolException e) {
+                    e.printStackTrace();
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
+        });
+        thread.start();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return parsedDistance[0];
+
+    }
+
+
+
+
 }
